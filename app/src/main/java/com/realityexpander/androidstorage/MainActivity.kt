@@ -1,4 +1,4 @@
-package com.plcoding.androidstorage
+package com.realityexpander.androidstorage
 
 import android.Manifest
 import android.app.RecoverableSecurityException
@@ -20,9 +20,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
-import com.plcoding.androidstorage.databinding.ActivityMainBinding
+import com.realityexpander.androidstorage.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -121,6 +122,8 @@ class MainActivity : AppCompatActivity() {
         setupInternalStorageRecyclerView()
         loadPhotosFromInternalStorageIntoRecyclerView()
         loadPhotosFromExternalStorageIntoRecyclerView()
+
+        setupConcatRecyclerView()
     }
 
     private fun initContentObserver() {
@@ -186,6 +189,7 @@ class MainActivity : AppCompatActivity() {
                 val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
                 val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
                 val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+                var index = 0
 
                 while(cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
@@ -196,6 +200,9 @@ class MainActivity : AppCompatActivity() {
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         id
                     )
+
+                    index++
+                    println("index: $index, displayName: $displayName, width: $width, height: $height")
                     photos.add(SharedStoragePhoto(id, displayName, width, height, contentUri))
                 }
                 photos.toList()
@@ -265,6 +272,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupExternalStorageRecyclerView() = binding.rvPublicPhotos.apply {
         adapter = externalStoragePhotoAdapter
         layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
+    }
+
+    private fun setupConcatRecyclerView() = binding.rvPrivatePhotos.apply {
+        adapter = ConcatAdapter(internalStoragePhotoAdapter, externalStoragePhotoAdapter)
     }
 
     private fun loadPhotosFromInternalStorageIntoRecyclerView() {
