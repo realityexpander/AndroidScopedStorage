@@ -15,73 +15,105 @@ import com.realityexpander.androidstorage.databinding.ItemGroupTitleBinding
 import com.realityexpander.androidstorage.databinding.ItemPhotoBinding
 import kotlinx.coroutines.*
 
+open class SharedPhotoSupertype
+class GroupItemSubtype : SharedPhotoSupertype()
+
 class SharedPhotoAdapter(
     private val onPhotoClick: (SharedStoragePhoto) -> Unit
-) : ListAdapter<SharedStoragePhoto, SharedPhotoAdapter.PhotoViewHolder>(AsyncDifferConfig.Builder(Companion).build()) {
+) : ListAdapter<SharedPhotoSupertype, RecyclerView.ViewHolder>(AsyncDifferConfig.Builder(Companion).build()) {
+
+    enum class ItemKind(val layoutId: Int) {
+        PHOTO (R.layout.item_photo),
+        GROUP_TITLE (R.layout.item_group_title)
+    }
 
     inner class PhotoViewHolder(val binding: ItemPhotoBinding): RecyclerView.ViewHolder(binding.root)
     inner class GroupViewHolder(val binding: ItemGroupTitleBinding): RecyclerView.ViewHolder(binding.root)
 
-    companion object : DiffUtil.ItemCallback<SharedStoragePhoto>() {
-        override fun areItemsTheSame(oldItem: SharedStoragePhoto, newItem: SharedStoragePhoto): Boolean {
-            return oldItem.id == newItem.id
+    companion object : DiffUtil.ItemCallback<SharedPhotoSupertype>() {
+        override fun areItemsTheSame(oldItem: SharedPhotoSupertype, newItem: SharedPhotoSupertype): Boolean {
+            return when(oldItem) {
+                is SharedStoragePhoto ->  oldItem.id == (newItem as SharedStoragePhoto).id
+                else -> true
+            }
         }
 
-        override fun areContentsTheSame(oldItem: SharedStoragePhoto, newItem: SharedStoragePhoto): Boolean {
-            return oldItem == newItem
+        override fun areContentsTheSame(oldItem: SharedPhotoSupertype, newItem: SharedPhotoSupertype): Boolean {
+            return when(oldItem) {
+                is SharedStoragePhoto ->  oldItem == (newItem as SharedStoragePhoto)
+                else -> true
+            }
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoViewHolder {
-        when(viewType) {
-            1 -> return PhotoViewHolder(
-                    ItemPhotoBinding.inflate(
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+
+        return when (viewType) { // this is just a layout resource id
+            ItemKind.PHOTO.layoutId ->
+                PhotoViewHolder(
+                        ItemPhotoBinding.inflate(
                         LayoutInflater.from(parent.context),
                         parent,
                         false
                     )
                 )
-            2 -> return GroupViewHolder(
-                    ItemGroupTitleBinding.inflate(
+            ItemKind.GROUP_TITLE.layoutId ->
+                GroupViewHolder(
+                        ItemGroupTitleBinding.inflate(
                         LayoutInflater.from(parent.context),
                         parent,
                         false
                     )
-            )
+                )
+            else ->
+                throw IllegalArgumentException("Unknown viewType: $viewType")
         }
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if(position == 0) 1 else 2
+        return if(position < 3)
+            ItemKind.GROUP_TITLE.layoutId
+        else
+            ItemKind.PHOTO.layoutId
     }
 
-    override fun onBindViewHolder(holder: PhotoViewHolder, position: Int) {
-        val photo = currentList[position]
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val item = currentList[position]
 
-        println("onBindViewHolder: ${photo.id}, $position")
+        when(holder) {
+            is PhotoViewHolder -> {
+                val photo = item as SharedStoragePhoto
+                val holder = (holder as PhotoViewHolder)
+                println("onBindViewHolder: ${photo.id}, $position")
 
-        holder.binding.apply {
-            if (photo.height > 400 && photo.width > 400) {
-                GlobalScope.launch {
-                    val bitmap = resizeImageUri(photo.contentUri, root.context)
-                    withContext(Dispatchers.Main) {
-                        ivPhoto.setImageBitmap(bitmap)
+                holder.binding.apply {
+                    if (photo.height > 400 && photo.width > 400) {
+                        GlobalScope.launch {
+                            val bitmap = resizeImageUri(photo.contentUri, root.context)
+                            withContext(Dispatchers.Main) {
+                                ivPhoto.setImageBitmap(bitmap)
+                            }
+                        }
+                    } else {
+                        ivPhoto.setImageURI(photo.contentUri)
+                    }
+
+                    val aspectRatio = photo.width.toFloat() / photo.height.toFloat()
+                    ConstraintSet().apply {
+                        clone(root)
+                        setDimensionRatio(ivPhoto.id, aspectRatio.toString())
+                        applyTo(root)
+                    }
+
+                    ivPhoto.setOnLongClickListener {
+                        onPhotoClick(photo)
+                        true
                     }
                 }
-            } else {
-                ivPhoto.setImageURI(photo.contentUri)
             }
+            else -> {
 
-            val aspectRatio = photo.width.toFloat() / photo.height.toFloat()
-            ConstraintSet().apply {
-                clone(root)
-                setDimensionRatio(ivPhoto.id, aspectRatio.toString())
-                applyTo(root)
-            }
-
-            ivPhoto.setOnLongClickListener {
-                onPhotoClick(photo)
-                true
             }
         }
     }

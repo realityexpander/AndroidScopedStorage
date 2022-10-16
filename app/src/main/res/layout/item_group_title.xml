@@ -8,7 +8,10 @@
     <TextView
         android:id="@+id/tvGroupTitle"
         android:layout_width="match_parent"
-        android:layout_height="16dp"
+        android:layout_height="32dp"
+        android:text="Public Photos"
+        android:textColor="@color/black"
+        android:textSize="24sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

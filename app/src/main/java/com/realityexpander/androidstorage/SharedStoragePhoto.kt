@@ -8,4 +8,4 @@ data class SharedStoragePhoto(
     val width: Int,
     val height: Int,
     val contentUri: Uri
-)
+) : SharedPhotoSupertype()
