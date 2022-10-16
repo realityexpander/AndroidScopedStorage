@@ -15,7 +15,14 @@ import com.realityexpander.androidstorage.databinding.ItemGroupTitleBinding
 import com.realityexpander.androidstorage.databinding.ItemPhotoBinding
 import kotlinx.coroutines.*
 
-open class SharedPhotoSupertype
+open class SharedPhotoSupertype {
+    override fun equals(other: Any?): Boolean {
+        return super.equals(other)
+    }
+    override fun hashCode(): Int {
+        return javaClass.hashCode()
+    }
+}
 class GroupItemSubtype : SharedPhotoSupertype()
 
 class SharedPhotoAdapter(
@@ -34,14 +41,14 @@ class SharedPhotoAdapter(
         override fun areItemsTheSame(oldItem: SharedPhotoSupertype, newItem: SharedPhotoSupertype): Boolean {
             return when(oldItem) {
                 is SharedStoragePhoto ->  oldItem.id == (newItem as SharedStoragePhoto).id
-                else -> true
+                else -> oldItem == newItem
             }
         }
 
         override fun areContentsTheSame(oldItem: SharedPhotoSupertype, newItem: SharedPhotoSupertype): Boolean {
             return when(oldItem) {
                 is SharedStoragePhoto ->  oldItem == (newItem as SharedStoragePhoto)
-                else -> true
+                else -> oldItem == newItem
             }
         }
     }
