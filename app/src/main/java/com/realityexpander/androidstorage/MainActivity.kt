@@ -169,11 +169,14 @@ class MainActivity : AppCompatActivity() {
     private suspend fun loadPhotosFromInternalStorage(): List<InternalStoragePhoto> {
         return withContext(Dispatchers.IO) {
             val files = filesDir.listFiles()
-            files?.filter { it.canRead() && it.isFile && it.name.endsWith(".jpg") }?.map {
-                val bytes = it.readBytes()
-                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                InternalStoragePhoto(it.name, bmp)
-            } ?: listOf()
+            files?.filter {
+                    it.canRead() && it.isFile && it.name.endsWith(".jpg")
+                }?.map{
+                    val bytes = it.readBytes()
+                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+
+                    InternalStoragePhoto(it.name, bmp)
+                } ?: listOf()
         }
     }
 
