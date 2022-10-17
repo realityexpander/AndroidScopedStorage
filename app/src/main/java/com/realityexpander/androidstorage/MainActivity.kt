@@ -234,11 +234,13 @@ class MainActivity : AppCompatActivity() {
             }
             try {
                 contentResolver.insert(imageCollection, contentValues)?.also { uri ->
-                    contentResolver.openOutputStream(uri).use { outputStream ->
-                        if(!bmp.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)) {
-                            throw IOException("Couldn't save bitmap")
+                    contentResolver
+                        .openOutputStream(uri)
+                        .use { outputStream ->
+                            if(!bmp.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)) {
+                                throw IOException("Couldn't save bitmap")
+                            }
                         }
-                    }
                 } ?: throw IOException("Couldn't create MediaStore entry")
                 true
             } catch(e: IOException) {
