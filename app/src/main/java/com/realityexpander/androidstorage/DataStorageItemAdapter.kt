@@ -14,51 +14,51 @@ import com.realityexpander.androidstorage.databinding.ItemGroupTitleBinding
 import com.realityexpander.androidstorage.databinding.ItemInternalPhotoBinding
 import kotlinx.coroutines.*
 
-
+const val MAX_IMAGE_WIDTH_OR_HEIGHT = 400
 typealias LayoutResourceId = Int
-typealias ViewItemId = Int
 
 class DataStorageItemAdapter(
     private val onExternalStoragePhotoClick: (ExternalStoragePhoto) -> Unit = {},
     private val onInternalStoragePhotoClick: (InternalStoragePhoto) -> Unit = {},
 ) : BaseRecyclerAdapter<BaseDataStorageItem>() {
 
-    enum class LayoutItemKind(val layoutId: Int, val viewItemId: Int) {
-        GROUP_TITLE_ITEM (R.layout.item_group_title, 1),
-        EXTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_external_photo, 2),
-        INTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_internal_photo, 3)
+    enum class LayoutItemKind(val layoutId: Int) {
+        GROUP_TITLE_ITEM (R.layout.item_group_title),
+        EXTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_external_photo),
+        INTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_internal_photo)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: ViewItemId): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: LayoutResourceId): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
 
         return when (viewType) { // this is just a layout resource id
-            LayoutItemKind.GROUP_TITLE_ITEM.viewItemId ->
-                GroupTitleViewHolder(inflater, parent,
-                    LayoutItemKind.GROUP_TITLE_ITEM.layoutId)
+            LayoutItemKind.GROUP_TITLE_ITEM.layoutId ->
+                GroupTitleViewHolder(inflater, parent, viewType)
 
-            LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.viewItemId ->
-                ExternalStoragePhotoViewHolder(inflater, parent,
-                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId, onExternalStoragePhotoClick)
+            LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId ->
+                ExternalStoragePhotoViewHolder(inflater, parent,viewType, onExternalStoragePhotoClick)
 
-            LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.viewItemId ->
-                InternalStoragePhotoViewHolder(inflater, parent,
-                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId, onInternalStoragePhotoClick)
+            LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId ->
+                InternalStoragePhotoViewHolder(inflater, parent, viewType, onInternalStoragePhotoClick)
             else ->
                 throw IllegalArgumentException("Unknown viewType: $viewType")
         }
     }
 
-    override fun getItemViewType(position: Int): ViewItemId {
+    override fun getItemViewType(position: Int): LayoutResourceId {
         return getItem(position)?.let {
             return when (it) {
                 is GroupTitle ->
-                    LayoutItemKind.GROUP_TITLE_ITEM.viewItemId
+                    LayoutItemKind.GROUP_TITLE_ITEM.layoutId
+
                 is ExternalStoragePhoto ->
-                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.viewItemId
+                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId
+
                 is InternalStoragePhoto ->
-                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.viewItemId
-                else -> throw IllegalArgumentException("Unknown viewType: $it")
+                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId
+
+                else ->
+                    throw IllegalArgumentException("Unknown viewType: $it")
             }
         } ?: throw IllegalArgumentException("Unknown viewType for position: $position")
     }
@@ -67,12 +67,18 @@ class DataStorageItemAdapter(
         val dataStorageItem = getItem(position) ?: return
 
         when (holder) {
+
             is GroupTitleViewHolder ->
                 holder.bind(dataStorageItem as GroupTitle)
+
             is ExternalStoragePhotoViewHolder ->
                 holder.bind(dataStorageItem as ExternalStoragePhoto)
+
             is InternalStoragePhotoViewHolder ->
                 holder.bind(dataStorageItem as InternalStoragePhoto)
+
+            else ->
+                throw IllegalArgumentException("Unknown holder: $holder")
         }
     }
 
@@ -86,6 +92,7 @@ class DataStorageItemAdapter(
         fun bind(groupTitleData: GroupTitle) {
             binding.tvGroupTitle.text = groupTitleData.title
 
+            // Use the whole row for this item
             (this.binding.root.layoutParams as StaggeredGridLayoutManager.LayoutParams).isFullSpan = true
         }
     }
@@ -96,39 +103,36 @@ class DataStorageItemAdapter(
         layoutResourceId: Int,
         private val onSharedStoragePhotoClick: (ExternalStoragePhoto) -> Unit
     ) : RecyclerView.ViewHolder(inflater.inflate(layoutResourceId, parent, false)) {
-//    ) : RecyclerView.ViewHolder(ItemPhotoBinding.bind(ItemPhotoBinding.inflate(inflater, parent, false)).root) {
 
         private val binding = ItemExternalPhotoBinding.bind(itemView)
         //private val binding = ItemPhotoBinding.inflate(inflater, parent, false)
 
         fun bind(photoData: ExternalStoragePhoto) {
+            binding.apply {
 
-            println("onBindViewHolder externalStoragePhotoViewHolder: ${photoData.id}, $position")
-
-//            holder.binding.apply {
-                if (photoData.height > 400 && photoData.width > 400) {
+                if (photoData.height > MAX_IMAGE_WIDTH_OR_HEIGHT || photoData.width > MAX_IMAGE_WIDTH_OR_HEIGHT) {
                     GlobalScope.launch {
                         val bitmap = resizeImageUri(photoData.contentUri, binding.root.context)
                         withContext(Dispatchers.Main) {
-                            binding.ivPhoto.setImageBitmap(bitmap)
+                            ivPhoto.setImageBitmap(bitmap)
                         }
                     }
                 } else {
-                    binding.ivPhoto.setImageURI(photoData.contentUri)
+                    ivPhoto.setImageURI(photoData.contentUri)
                 }
 
                 val aspectRatio = photoData.width.toFloat() / photoData.height.toFloat()
                 ConstraintSet().apply {
-                    clone(binding.root)
-                    setDimensionRatio(binding.ivPhoto.id, aspectRatio.toString())
-                    applyTo(binding.root)
+                    clone(root)
+                    setDimensionRatio(ivPhoto.id, aspectRatio.toString())
+                    applyTo(root)
                 }
 
-                binding.ivPhoto.setOnLongClickListener {
+                ivPhoto.setOnLongClickListener {
                     onSharedStoragePhotoClick(photoData)
                     true
                 }
-//            }
+            }
         }
     }
 
@@ -141,26 +145,26 @@ class DataStorageItemAdapter(
         private val binding = ItemInternalPhotoBinding.bind(itemView)
 
         fun bind(photoData: InternalStoragePhoto) {
-            println("onBindViewHolder InternalStoragePhotoViewHolder: ${photoData.name}, $position")
+            binding.apply {
+                val aspectRatio = photoData.bmp.width.toFloat() / photoData.bmp.height.toFloat()
+                ConstraintSet().apply {
+                    clone(root)
+                    setDimensionRatio(ivPhoto.id, aspectRatio.toString())
+                    applyTo(root)
+                }
 
-            val aspectRatio = photoData.bmp.width.toFloat() / photoData.bmp.height.toFloat()
-            ConstraintSet().apply {
-                clone(binding.root)
-                setDimensionRatio(binding.ivPhoto.id, aspectRatio.toString())
-                applyTo(binding.root)
-            }
+                ivPhoto.setImageBitmap(photoData.bmp)
 
-            binding.ivPhoto.setImageBitmap(photoData.bmp)
-
-            binding.ivPhoto.setOnLongClickListener {
-                onInternalStoragePhotoClick(photoData)
-                true
+                ivPhoto.setOnLongClickListener {
+                    onInternalStoragePhotoClick(photoData)
+                    true
+                }
             }
         }
     }
 }
 
-// Resize ImageUri to max 400x400
+// Resize ImageUri to max MAX_IMAGE_WIDTH_OR_HEIGHT
 private suspend fun resizeImageUri(uri: Uri, context: Context): Bitmap? {
     val scope = CoroutineScope(Dispatchers.Default)
 
@@ -170,7 +174,7 @@ private suspend fun resizeImageUri(uri: Uri, context: Context): Bitmap? {
         val image = BitmapFactory.decodeFileDescriptor(fileDescriptor)
         parcelFileDescriptor.close()
 
-        val max = 400
+        val max = MAX_IMAGE_WIDTH_OR_HEIGHT
         val width = image.width
         val height = image.height
         val scale = if (width > height) {
@@ -183,6 +187,4 @@ private suspend fun resizeImageUri(uri: Uri, context: Context): Bitmap? {
 
         Bitmap.createBitmap(image, 0, 0, width, height, matrix, true)
     }.await()
-
-    //return Bitmap.createScaledBitmap(image, 200, 200, true)  // does not respect aspect ratio
 }

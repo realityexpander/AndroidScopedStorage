@@ -35,8 +35,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-//    private lateinit var internalStoragePhotoAdapter: InternalStoragePhotoAdapter
-//    private lateinit var externalStoragePhotoAdapter: SharedPhotoAdapter
     private lateinit var internalStoragePhotoAdapter: DataStorageItemAdapter
     private lateinit var externalStoragePhotoAdapter: DataStorageItemAdapter
 
@@ -54,25 +52,6 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-//        internalStoragePhotoAdapter = InternalStoragePhotoAdapter {
-//            lifecycleScope.launch {
-//                val isDeletionSuccessful = deletePhotoFromInternalStorage(it.name)
-//                if(isDeletionSuccessful) {
-//                    loadPhotosFromInternalStorageIntoRecyclerView()
-//                    Toast.makeText(this@MainActivity, "Photo successfully deleted", Toast.LENGTH_SHORT).show()
-//                } else {
-//                    Toast.makeText(this@MainActivity, "Failed to delete photo", Toast.LENGTH_SHORT).show()
-//                }
-//            }
-//        }
-//        externalStoragePhotoAdapter = SharedPhotoAdapter {
-//            lifecycleScope.launch {
-//                deletePhotoFromExternalStorage(it.contentUri)
-//                deletedImageUri = it.contentUri
-//            }
-//        }
-
-        // NEW
         internalStoragePhotoAdapter = DataStorageItemAdapter(
             onInternalStoragePhotoClick = {
                 lifecycleScope.launch {
@@ -94,9 +73,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         )
-
-        //setupExternalStorageRecyclerView()
-        initContentObserver()
 
         permissionsLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: readPermissionGranted
@@ -146,11 +122,11 @@ class MainActivity : AppCompatActivity() {
             takePhoto.launch()
         }
 
+
         loadPhotosFromInternalStorageIntoRecyclerView()
         loadPhotosFromExternalStorageIntoRecyclerView()
-
+        initContentObserver()
         setupConcatRecyclerView()
-
     }
 
     private fun initContentObserver() {
@@ -291,56 +267,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-//    private fun setupInternalStorageRecyclerView() = binding.rvPrivatePhotos.apply {
-//        adapter = internalStoragePhotoAdapter
-//        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
-//    }
-
-//    private fun setupExternalStorageRecyclerView() = binding.rvPublicPhotos.apply {
-//        adapter = externalStoragePhotoAdapter
-//        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
-//    }
-
     private fun setupConcatRecyclerView() = binding.rvDataStorageItems.apply {
-//        val concatAdapterConfig = ConcatAdapter.Config.Builder()
-//            .setIsolateViewTypes(true)
-//            .build()
-//        val concatAdapter = ConcatAdapter(concatAdapterConfig, internalStoragePhotoAdapter, externalStoragePhotoAdapter)
-        val concatAdapter = ConcatAdapter(internalStoragePhotoAdapter, externalStoragePhotoAdapter)
-
-        val layoutManagerConfig = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
-
-//        val layoutManagerConfig = GridLayoutManager(this@MainActivity, 3, RecyclerView.VERTICAL, false)
-//        layoutManagerConfig.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-//            override fun getSpanSize(position: Int): Int {
-//                println("position: $position, viewType: ${adapter?.getItemViewType(position)}")
-//
-//                return when(concatAdapter.getItemViewType(position)) {
-//                    DataStorageItemAdapter.LayoutItemKind.GROUP_TITLE_ITEM.viewItemId ->
-//                        3
-//                    DataStorageItemAdapter.LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.viewItemId ->
-//                        1
-//                    DataStorageItemAdapter.LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.viewItemId ->
-//                        1
-//                    else ->
-//                        1
-//                }
-//            }
-//        }
-
-        adapter = concatAdapter
-        layoutManager = layoutManagerConfig
+        adapter = ConcatAdapter(internalStoragePhotoAdapter, externalStoragePhotoAdapter)
+        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
     }
 
     private fun loadPhotosFromInternalStorageIntoRecyclerView() {
         lifecycleScope.launch {
-//            val photos = loadPhotosFromInternalStorage()
-//            internalStoragePhotoAdapter.submitList(photos)
             val photos =
                 listOf(
-                    GroupTitle("Private/int."),
-//                    GroupTitle(""),
-//                    GroupTitle(""),
+                    GroupTitle("Private/internal storage"),
                 ) +
                     loadPhotosFromInternalStorage()
             internalStoragePhotoAdapter.setList(photos.toMutableList())
@@ -350,18 +286,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadPhotosFromExternalStorageIntoRecyclerView() {
         lifecycleScope.launch {
-//            val photos = loadPhotosFromExternalStorage()
-//            externalStoragePhotoAdapter.submitList(photos)
-//            val numSpacers = 3 - (internalStoragePhotoAdapter.itemCount % 3)
-//            for(i in 0 until numSpacers) {
-//                externalStoragePhotoAdapter.add(GroupTitle(""))
-//            }
-
             val photos =
                 listOf(
-                    GroupTitle("Public/ext."),
-//                    GroupTitle(""),
-//                    GroupTitle(""),
+                    GroupTitle("Public/external storage"),
                 ) +
                     loadPhotosFromExternalStorage()
             externalStoragePhotoAdapter.setList(photos.toMutableList())
