@@ -33,6 +33,13 @@ import java.util.*
 
 // Good example of using ConcatAdapter: https://github.com/akexorcist/ConcatAdapterMultipleLayoutManager
 
+// Public Storage is the same as External Storage
+// Private Storage is the same as Internal Storage
+
+// If you take a photo with the camera, and save in Public storage, this app can delete it without extra user dialog.
+// If you take a photo with the camera, and save in Private storage, this app can delete it without extra user dialog.
+// For any photo in the Public area (that was not added by this app), the user will be shown a permission dialog to confirm deletion.
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -91,10 +98,14 @@ class MainActivity : AppCompatActivity() {
         intentSenderLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
             if(it.resultCode == RESULT_OK) {
                 if(Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                    // For Q, we need to delete the image from the MediaStore after getting permission from the user.
                     lifecycleScope.launch {
                         deletePhotoFromExternalStorage(deletedImageUri ?: return@launch)
                     }
                 }
+
+                // For Build.VERSION_CODES.R, the OS will delete the file. No need to do anything here.
+
                 Toast.makeText(this@MainActivity, "Photo deleted successfully", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this@MainActivity, "Photo couldn't be deleted", Toast.LENGTH_SHORT).show()
@@ -129,41 +140,6 @@ class MainActivity : AppCompatActivity() {
         loadPhotosFromExternalStorageIntoRecyclerView()
         initContentObserver()
         setupConcatRecyclerView()
-    }
-
-    private suspend fun deletePhotoFromInternalStorage(filename: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                deleteFile(filename)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                false
-            }
-        }
-    }
-
-    private suspend fun deletePhotoFromExternalStorage(photoUri: Uri) {
-        withContext(Dispatchers.IO) {
-            try {
-                contentResolver.delete(photoUri, null, null)
-            } catch (e: SecurityException) {
-                val intentSender = when {
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                        MediaStore.createDeleteRequest(contentResolver, listOf(photoUri)).intentSender
-                    }
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                        val recoverableSecurityException = e as? RecoverableSecurityException
-                        recoverableSecurityException?.userAction?.actionIntent?.intentSender
-                    }
-                    else -> null
-                }
-                intentSender?.let { sender ->
-                    intentSenderLauncher.launch(
-                        IntentSenderRequest.Builder(sender).build()
-                    )
-                }
-            }
-        }
     }
 
     private suspend fun loadPhotosFromInternalStorage(): List<InternalStoragePhoto> {
@@ -272,13 +248,53 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun deletePhotoFromInternalStorage(filename: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                deleteFile(filename)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
+    private suspend fun deletePhotoFromExternalStorage(photoUri: Uri) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Attempt to delete the photo (if the app created it, it will be deleted successfully)
+                contentResolver.delete(photoUri, null, null)
+            } catch (e: SecurityException) {
+
+                // If could not delete the photo, then we need to request confirmation from the user.
+                val intentSender = when {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                        MediaStore.createDeleteRequest(contentResolver, listOf(photoUri)).intentSender
+                    }
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                        val recoverableSecurityException = e as? RecoverableSecurityException
+                        recoverableSecurityException?.userAction?.actionIntent?.intentSender
+                    }
+                    else -> null
+                }
+
+                // Have the user confirm the deletion of the photo.
+                intentSender?.let { sender ->
+                    intentSenderLauncher.launch(
+                        IntentSenderRequest.Builder(sender).build()
+                    )
+                }
+            }
+        }
+    }
+
     private fun loadPhotosFromExternalStorageIntoRecyclerView() {
         lifecycleScope.launch {
             val photos =
                 listOf(
                     GroupTitle("Public/external storage"),
-                ) +
-                    loadPhotosFromExternalStorage()
+                ) + loadPhotosFromExternalStorage()
+
             externalStoragePhotoAdapter.setList(photos.toMutableList())
             externalStoragePhotoAdapter.notifyDataChanged()
         }
@@ -289,8 +305,8 @@ class MainActivity : AppCompatActivity() {
             val photos =
                 listOf(
                     GroupTitle("Private/internal storage"),
-                ) +
-                        loadPhotosFromInternalStorage()
+                ) + loadPhotosFromInternalStorage()
+
             internalStoragePhotoAdapter.setList(photos.toMutableList())
             internalStoragePhotoAdapter.notifyDataChanged()
         }
