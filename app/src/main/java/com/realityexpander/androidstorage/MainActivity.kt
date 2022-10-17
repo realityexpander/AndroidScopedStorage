@@ -31,6 +31,8 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.*
 
+// Good example of using ConcatAdapter: https://github.com/akexorcist/ConcatAdapterMultipleLayoutManager
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -129,19 +131,15 @@ class MainActivity : AppCompatActivity() {
         setupConcatRecyclerView()
     }
 
-    private fun initContentObserver() {
-        contentObserver = object : ContentObserver(null) {
-            override fun onChange(selfChange: Boolean) {
-                if(readPermissionGranted) {
-                    loadPhotosFromExternalStorageIntoRecyclerView()
-                }
+    private suspend fun deletePhotoFromInternalStorage(filename: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                deleteFile(filename)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
             }
         }
-        contentResolver.registerContentObserver(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            true,
-            contentObserver
-        )
     }
 
     private suspend fun deletePhotoFromExternalStorage(photoUri: Uri) {
@@ -168,8 +166,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun loadPhotosFromInternalStorage(): List<InternalStoragePhoto> {
+        return withContext(Dispatchers.IO) {
+            val files = filesDir.listFiles()
+            files?.filter { it.canRead() && it.isFile && it.name.endsWith(".jpg") }?.map {
+                val bytes = it.readBytes()
+                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                InternalStoragePhoto(it.name, bmp)
+            } ?: listOf()
+        }
+    }
+
     private suspend fun loadPhotosFromExternalStorage(): List<ExternalStoragePhoto> {
         return withContext(Dispatchers.IO) {
+
             val collection = sdk29AndUp {
                 MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
             } ?: MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -181,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                 MediaStore.Images.Media.HEIGHT,
             )
             val photos = mutableListOf<ExternalStoragePhoto>()
+
             contentResolver.query(
                 collection,
                 projection,
@@ -205,37 +216,28 @@ class MainActivity : AppCompatActivity() {
                     )
 
                     index++
-                    println("index: $index, displayName: $displayName, width: $width, height: $height")
+                    //println("index: $index, displayName: $displayName, width: $width, height: $height")
                     photos.add(ExternalStoragePhoto(id, displayName, width, height, contentUri))
                 }
+
                 photos.toList()
             } ?: listOf()
         }
     }
 
-    private fun updateOrRequestPermissions() {
-        val hasReadPermission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED
-        val hasWritePermission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED
-        val minSdk29 = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-
-        readPermissionGranted = hasReadPermission
-        writePermissionGranted = hasWritePermission || minSdk29
-
-        val permissionsToRequest = mutableListOf<String>()
-        if(!writePermissionGranted) {
-            permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-        if(!readPermissionGranted) {
-            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        if(permissionsToRequest.isNotEmpty()) {
-            permissionsLauncher.launch(permissionsToRequest.toTypedArray())
+    private suspend fun savePhotoToInternalStorage(filename: String, bmp: Bitmap): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                openFileOutput("$filename.jpg", MODE_PRIVATE).use { stream ->
+                    if(!bmp.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
+                        throw IOException("Couldn't save bitmap.")
+                    }
+                }
+                true
+            } catch(e: IOException) {
+                e.printStackTrace()
+                false
+            }
         }
     }
 
@@ -267,23 +269,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupConcatRecyclerView() = binding.rvDataStorageItems.apply {
-        adapter = ConcatAdapter(internalStoragePhotoAdapter, externalStoragePhotoAdapter)
-        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
-    }
-
-    private fun loadPhotosFromInternalStorageIntoRecyclerView() {
-        lifecycleScope.launch {
-            val photos =
-                listOf(
-                    GroupTitle("Private/internal storage"),
-                ) +
-                    loadPhotosFromInternalStorage()
-            internalStoragePhotoAdapter.setList(photos.toMutableList())
-            internalStoragePhotoAdapter.notifyDataChanged()
-        }
-    }
-
     private fun loadPhotosFromExternalStorageIntoRecyclerView() {
         lifecycleScope.launch {
             val photos =
@@ -296,41 +281,61 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun deletePhotoFromInternalStorage(filename: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                deleteFile(filename)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                false
-            }
+    private fun loadPhotosFromInternalStorageIntoRecyclerView() {
+        lifecycleScope.launch {
+            val photos =
+                listOf(
+                    GroupTitle("Private/internal storage"),
+                ) +
+                        loadPhotosFromInternalStorage()
+            internalStoragePhotoAdapter.setList(photos.toMutableList())
+            internalStoragePhotoAdapter.notifyDataChanged()
         }
     }
 
-    private suspend fun loadPhotosFromInternalStorage(): List<InternalStoragePhoto> {
-        return withContext(Dispatchers.IO) {
-            val files = filesDir.listFiles()
-            files?.filter { it.canRead() && it.isFile && it.name.endsWith(".jpg") }?.map {
-                val bytes = it.readBytes()
-                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                InternalStoragePhoto(it.name, bmp)
-            } ?: listOf()
-        }
+    private fun setupConcatRecyclerView() = binding.rvDataStorageItems.apply {
+        adapter = ConcatAdapter(internalStoragePhotoAdapter, externalStoragePhotoAdapter)
+        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
     }
 
-    private suspend fun savePhotoToInternalStorage(filename: String, bmp: Bitmap): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                openFileOutput("$filename.jpg", MODE_PRIVATE).use { stream ->
-                    if(!bmp.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
-                        throw IOException("Couldn't save bitmap.")
-                    }
+    private fun initContentObserver() {
+        contentObserver = object : ContentObserver(null) {
+            override fun onChange(selfChange: Boolean) {
+                if(readPermissionGranted) {
+                    loadPhotosFromExternalStorageIntoRecyclerView()
                 }
-                true
-            } catch(e: IOException) {
-                e.printStackTrace()
-                false
             }
+        }
+        contentResolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            contentObserver
+        )
+    }
+
+    private fun updateOrRequestPermissions() {
+        val hasReadPermission = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasWritePermission = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+        val minSdk29 = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+        readPermissionGranted = hasReadPermission
+        writePermissionGranted = hasWritePermission || minSdk29
+
+        val permissionsToRequest = mutableListOf<String>()
+        if(!writePermissionGranted) {
+            permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        if(!readPermissionGranted) {
+            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        if(permissionsToRequest.isNotEmpty()) {
+            permissionsLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
 
