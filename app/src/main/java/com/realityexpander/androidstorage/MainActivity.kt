@@ -13,6 +13,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
@@ -21,7 +22,9 @@ import androidx.activity.result.launch
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ConcatAdapter
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.Orientation
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.realityexpander.androidstorage.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
@@ -34,8 +37,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    private lateinit var internalStoragePhotoAdapter: InternalStoragePhotoAdapter
-    private lateinit var externalStoragePhotoAdapter: SharedPhotoAdapter
+//    private lateinit var internalStoragePhotoAdapter: InternalStoragePhotoAdapter
+//    private lateinit var externalStoragePhotoAdapter: SharedPhotoAdapter
+    private lateinit var internalStoragePhotoAdapter: DataStorageItemAdapter
+    private lateinit var externalStoragePhotoAdapter: DataStorageItemAdapter
 
     private var readPermissionGranted = false
     private var writePermissionGranted = false
@@ -51,24 +56,48 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        internalStoragePhotoAdapter = InternalStoragePhotoAdapter {
-            lifecycleScope.launch {
-                val isDeletionSuccessful = deletePhotoFromInternalStorage(it.name)
-                if(isDeletionSuccessful) {
-                    loadPhotosFromInternalStorageIntoRecyclerView()
-                    Toast.makeText(this@MainActivity, "Photo successfully deleted", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "Failed to delete photo", Toast.LENGTH_SHORT).show()
+//        internalStoragePhotoAdapter = InternalStoragePhotoAdapter {
+//            lifecycleScope.launch {
+//                val isDeletionSuccessful = deletePhotoFromInternalStorage(it.name)
+//                if(isDeletionSuccessful) {
+//                    loadPhotosFromInternalStorageIntoRecyclerView()
+//                    Toast.makeText(this@MainActivity, "Photo successfully deleted", Toast.LENGTH_SHORT).show()
+//                } else {
+//                    Toast.makeText(this@MainActivity, "Failed to delete photo", Toast.LENGTH_SHORT).show()
+//                }
+//            }
+//        }
+//        externalStoragePhotoAdapter = SharedPhotoAdapter {
+//            lifecycleScope.launch {
+//                deletePhotoFromExternalStorage(it.contentUri)
+//                deletedImageUri = it.contentUri
+//            }
+//        }
+
+        // NEW
+        internalStoragePhotoAdapter = DataStorageItemAdapter(
+            onInternalStoragePhotoClick = {
+                lifecycleScope.launch {
+                    val isDeletionSuccessful = deletePhotoFromInternalStorage(it.name)
+                    if(isDeletionSuccessful) {
+                        loadPhotosFromInternalStorageIntoRecyclerView()
+                        Toast.makeText(this@MainActivity, "Photo successfully deleted", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@MainActivity, "Failed to delete photo", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
-        }
-        externalStoragePhotoAdapter = SharedPhotoAdapter {
-            lifecycleScope.launch {
-                deletePhotoFromExternalStorage(it.contentUri)
-                deletedImageUri = it.contentUri
+        )
+        externalStoragePhotoAdapter = DataStorageItemAdapter(
+            onExternalStoragePhotoClick = {
+                lifecycleScope.launch {
+                    deletePhotoFromExternalStorage(it.contentUri)
+                    deletedImageUri = it.contentUri
+                }
             }
-        }
-        setupExternalStorageRecyclerView()
+        )
+
+        //setupExternalStorageRecyclerView()
         initContentObserver()
 
         permissionsLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -119,11 +148,11 @@ class MainActivity : AppCompatActivity() {
             takePhoto.launch()
         }
 
-        setupInternalStorageRecyclerView()
         loadPhotosFromInternalStorageIntoRecyclerView()
         loadPhotosFromExternalStorageIntoRecyclerView()
 
         setupConcatRecyclerView()
+
     }
 
     private fun initContentObserver() {
@@ -165,7 +194,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun loadPhotosFromExternalStorage(): List<SharedStoragePhoto> {
+    private suspend fun loadPhotosFromExternalStorage(): List<ExternalStoragePhoto> {
         return withContext(Dispatchers.IO) {
             val collection = sdk29AndUp {
                 MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -177,7 +206,7 @@ class MainActivity : AppCompatActivity() {
                 MediaStore.Images.Media.WIDTH,
                 MediaStore.Images.Media.HEIGHT,
             )
-            val photos = mutableListOf<SharedStoragePhoto>()
+            val photos = mutableListOf<ExternalStoragePhoto>()
             contentResolver.query(
                 collection,
                 projection,
@@ -203,7 +232,7 @@ class MainActivity : AppCompatActivity() {
 
                     index++
                     println("index: $index, displayName: $displayName, width: $width, height: $height")
-                    photos.add(SharedStoragePhoto(id, displayName, width, height, contentUri))
+                    photos.add(ExternalStoragePhoto(id, displayName, width, height, contentUri))
                 }
                 photos.toList()
             } ?: listOf()
@@ -264,31 +293,56 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupInternalStorageRecyclerView() = binding.rvPrivatePhotos.apply {
-        adapter = internalStoragePhotoAdapter
-        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
-    }
+//    private fun setupInternalStorageRecyclerView() = binding.rvPrivatePhotos.apply {
+//        adapter = internalStoragePhotoAdapter
+//        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
+//    }
 
-    private fun setupExternalStorageRecyclerView() = binding.rvPublicPhotos.apply {
-        adapter = externalStoragePhotoAdapter
-        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
-    }
+//    private fun setupExternalStorageRecyclerView() = binding.rvPublicPhotos.apply {
+//        adapter = externalStoragePhotoAdapter
+//        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
+//    }
 
-    private fun setupConcatRecyclerView() = binding.rvPrivatePhotos.apply {
+    private fun setupConcatRecyclerView() = binding.rvDataStorageItems.apply {
         adapter = ConcatAdapter(internalStoragePhotoAdapter, externalStoragePhotoAdapter)
+        layoutManager = StaggeredGridLayoutManager(3, RecyclerView.VERTICAL)
+//        layoutManager = GridLayoutManager(this@MainActivity, 3, RecyclerView.VERTICAL, false)
     }
 
     private fun loadPhotosFromInternalStorageIntoRecyclerView() {
         lifecycleScope.launch {
-            val photos = loadPhotosFromInternalStorage()
-            internalStoragePhotoAdapter.submitList(photos)
+//            val photos = loadPhotosFromInternalStorage()
+//            internalStoragePhotoAdapter.submitList(photos)
+            val photos =
+                listOf(
+                    GroupTitle("Private/int."),
+                    GroupTitle(""),
+                    GroupTitle(""),
+                ) +
+                    loadPhotosFromInternalStorage()
+            internalStoragePhotoAdapter.setList(photos.toMutableList())
+            internalStoragePhotoAdapter.notifyDataChanged()
         }
     }
 
     private fun loadPhotosFromExternalStorageIntoRecyclerView() {
         lifecycleScope.launch {
-            val photos = loadPhotosFromExternalStorage()
-            externalStoragePhotoAdapter.submitList(photos)
+//            val photos = loadPhotosFromExternalStorage()
+//            externalStoragePhotoAdapter.submitList(photos)
+            val numSpacers = 3 - (internalStoragePhotoAdapter.itemCount % 3)
+            for(i in 0 until numSpacers) {
+                externalStoragePhotoAdapter.add(GroupTitle(""))
+            }
+
+            val photos =
+                listOf(
+                    GroupTitle("Public/ext."),
+                    GroupTitle(""),
+                    GroupTitle(""),
+                ) +
+                    loadPhotosFromExternalStorage()
+            externalStoragePhotoAdapter.setList(photos.toMutableList())
+            externalStoragePhotoAdapter.notifyDataChanged()
         }
     }
 

@@ -11,43 +11,35 @@ import androidx.recyclerview.widget.AsyncDifferConfig
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.realityexpander.androidstorage.databinding.ItemExternalPhotoBinding
 import com.realityexpander.androidstorage.databinding.ItemGroupTitleBinding
-import com.realityexpander.androidstorage.databinding.ItemPhotoBinding
 import kotlinx.coroutines.*
 
-open class SharedPhotoSupertype {
-    override fun equals(other: Any?): Boolean {
-        return super.equals(other)
-    }
-    override fun hashCode(): Int {
-        return javaClass.hashCode()
-    }
-}
-class GroupItemSubtype : SharedPhotoSupertype()
+
 
 class SharedPhotoAdapter(
-    private val onPhotoClick: (SharedStoragePhoto) -> Unit
-) : ListAdapter<SharedPhotoSupertype, RecyclerView.ViewHolder>(AsyncDifferConfig.Builder(Companion).build()) {
+    private val onPhotoClick: (ExternalStoragePhoto) -> Unit
+) : ListAdapter<BaseDataStorageItem, RecyclerView.ViewHolder>(AsyncDifferConfig.Builder(Companion).build()) {
 
     enum class ItemKind(val layoutId: Int) {
-        PHOTO (R.layout.item_photo),
+        PHOTO (R.layout.item_external_photo),
         GROUP_TITLE (R.layout.item_group_title)
     }
 
-    inner class PhotoViewHolder(val binding: ItemPhotoBinding): RecyclerView.ViewHolder(binding.root)
+    inner class PhotoViewHolder(val binding: ItemExternalPhotoBinding): RecyclerView.ViewHolder(binding.root)
     inner class GroupViewHolder(val binding: ItemGroupTitleBinding): RecyclerView.ViewHolder(binding.root)
 
-    companion object : DiffUtil.ItemCallback<SharedPhotoSupertype>() {
-        override fun areItemsTheSame(oldItem: SharedPhotoSupertype, newItem: SharedPhotoSupertype): Boolean {
+    companion object : DiffUtil.ItemCallback<BaseDataStorageItem>() {
+        override fun areItemsTheSame(oldItem: BaseDataStorageItem, newItem: BaseDataStorageItem): Boolean {
             return when(oldItem) {
-                is SharedStoragePhoto ->  oldItem.id == (newItem as SharedStoragePhoto).id
+                is ExternalStoragePhoto ->  oldItem.id == (newItem as ExternalStoragePhoto).id
                 else -> oldItem == newItem
             }
         }
 
-        override fun areContentsTheSame(oldItem: SharedPhotoSupertype, newItem: SharedPhotoSupertype): Boolean {
+        override fun areContentsTheSame(oldItem: BaseDataStorageItem, newItem: BaseDataStorageItem): Boolean {
             return when(oldItem) {
-                is SharedStoragePhoto ->  oldItem == (newItem as SharedStoragePhoto)
+                is ExternalStoragePhoto ->  oldItem == (newItem as ExternalStoragePhoto)
                 else -> oldItem == newItem
             }
         }
@@ -59,7 +51,7 @@ class SharedPhotoAdapter(
         return when (viewType) { // this is just a layout resource id
             ItemKind.PHOTO.layoutId ->
                 PhotoViewHolder(
-                        ItemPhotoBinding.inflate(
+                        ItemExternalPhotoBinding.inflate(
                         LayoutInflater.from(parent.context),
                         parent,
                         false
@@ -90,7 +82,7 @@ class SharedPhotoAdapter(
 
         when(holder) {
             is PhotoViewHolder -> {
-                val photo = item as SharedStoragePhoto
+                val photo = item as ExternalStoragePhoto
                 val holder = (holder as PhotoViewHolder)
                 println("onBindViewHolder: ${photo.id}, $position")
 
@@ -119,8 +111,11 @@ class SharedPhotoAdapter(
                     }
                 }
             }
-            else -> {
-
+            is GroupViewHolder -> {
+                if (position in 1..2) {
+                    val holder = holder as GroupViewHolder
+                    holder.binding.tvGroupTitle.text = ""
+                }
             }
         }
     }

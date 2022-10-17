@@ -6,13 +6,13 @@ import androidx.constraintlayout.widget.ConstraintSet
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.realityexpander.androidstorage.databinding.ItemPhotoBinding
+import com.realityexpander.androidstorage.databinding.ItemInternalPhotoBinding
 
 class InternalStoragePhotoAdapter(
     private val onPhotoClick: (InternalStoragePhoto) -> Unit
 ) : ListAdapter<InternalStoragePhoto, InternalStoragePhotoAdapter.PhotoViewHolder>(Companion) {
 
-    inner class PhotoViewHolder(val binding: ItemPhotoBinding): RecyclerView.ViewHolder(binding.root)
+    inner class PhotoViewHolder(val binding: ItemInternalPhotoBinding): RecyclerView.ViewHolder(binding.root)
 
     companion object : DiffUtil.ItemCallback<InternalStoragePhoto>() {
         override fun areItemsTheSame(oldItem: InternalStoragePhoto, newItem: InternalStoragePhoto): Boolean {
@@ -26,7 +26,7 @@ class InternalStoragePhotoAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoViewHolder {
         return PhotoViewHolder(
-            ItemPhotoBinding.inflate(
+            ItemInternalPhotoBinding.inflate(
                 LayoutInflater.from(parent.context),
                 parent,
                 false
