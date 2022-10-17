@@ -22,7 +22,7 @@ class DataStorageItemAdapter(
     private val onInternalStoragePhotoClick: (InternalStoragePhoto) -> Unit = {},
 ) : BaseRecyclerAdapter<BaseDataStorageItem>() {
 
-    enum class LayoutItemKind(val layoutId: Int) {
+    enum class LayoutItemKind(val layoutResourceId: Int) {
         GROUP_TITLE_ITEM (R.layout.item_group_title),
         EXTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_external_photo),
         INTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_internal_photo)
@@ -32,16 +32,16 @@ class DataStorageItemAdapter(
         val inflater = LayoutInflater.from(parent.context)
 
         return when (viewType) { // this is just a layout resource id
-            LayoutItemKind.GROUP_TITLE_ITEM.layoutId ->
+            LayoutItemKind.GROUP_TITLE_ITEM.layoutResourceId ->
                 GroupTitleViewHolder(inflater, parent, viewType)
 
-            LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId ->
+            LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutResourceId ->
                 ExternalStoragePhotoViewHolder(inflater, parent,viewType, onExternalStoragePhotoClick)
 
-            LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId ->
+            LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutResourceId ->
                 InternalStoragePhotoViewHolder(inflater, parent, viewType, onInternalStoragePhotoClick)
             else ->
-                throw IllegalArgumentException("Unknown viewType: $viewType")
+                throw IllegalArgumentException("onCreateViewHolder->Unknown viewType: $viewType")
         }
     }
 
@@ -49,18 +49,18 @@ class DataStorageItemAdapter(
         return getItem(position)?.let {
             return when (it) {
                 is GroupTitle ->
-                    LayoutItemKind.GROUP_TITLE_ITEM.layoutId
+                    LayoutItemKind.GROUP_TITLE_ITEM.layoutResourceId
 
                 is ExternalStoragePhoto ->
-                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId
+                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutResourceId
 
                 is InternalStoragePhoto ->
-                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId
+                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutResourceId
 
                 else ->
                     throw IllegalArgumentException("Unknown viewType: $it")
             }
-        } ?: throw IllegalArgumentException("Unknown viewType for position: $position")
+        } ?: throw IllegalArgumentException("getItemViewType->Unknown viewType for position: $position")
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -78,7 +78,7 @@ class DataStorageItemAdapter(
                 holder.bind(dataStorageItem as InternalStoragePhoto)
 
             else ->
-                throw IllegalArgumentException("Unknown holder: $holder")
+                throw IllegalArgumentException("onBindViewHolder-> holder: $holder")
         }
     }
 
