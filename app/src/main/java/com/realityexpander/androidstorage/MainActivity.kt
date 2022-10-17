@@ -115,11 +115,17 @@ class MainActivity : AppCompatActivity() {
         val takePhoto = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) {
             lifecycleScope.launch {
                 val isPrivate = binding.switchPrivate.isChecked
-                val isSavedSuccessfully = when {
-                    isPrivate -> savePhotoToInternalStorage(UUID.randomUUID().toString(), it)
-                    writePermissionGranted -> savePhotoToExternalStorage(UUID.randomUUID().toString(), it)
-                    else -> false
-                }
+                val isSavedSuccessfully =
+                    when {
+                        isPrivate ->
+                            savePhotoToInternalStorage(UUID.randomUUID().toString(), it)
+
+                        writePermissionGranted ->
+                            savePhotoToExternalStorage(UUID.randomUUID().toString(), it)
+
+                        else -> false
+                    }
+
                 if(isPrivate) {
                     loadPhotosFromInternalStorageIntoRecyclerView()
                 }
@@ -242,6 +248,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                 } ?: throw IOException("Couldn't create MediaStore entry")
+
                 true
             } catch(e: IOException) {
                 e.printStackTrace()
