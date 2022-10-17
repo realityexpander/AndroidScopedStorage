@@ -38,7 +38,7 @@ import java.util.*
 
 // If you take a photo with the camera, and save in Public storage, this app can delete it without extra user dialog.
 // If you take a photo with the camera, and save in Private storage, this app can delete it without extra user dialog.
-// For any photo in the Public area (that was not added by this app), the user will be shown a permission dialog to confirm deletion.
+// For any photo in the Public area (that was not added by this app), a delete will show a permission dialog to confirm deletion.
 
 class MainActivity : AppCompatActivity() {
 
