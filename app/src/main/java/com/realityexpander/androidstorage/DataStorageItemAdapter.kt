@@ -8,50 +8,56 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.realityexpander.androidstorage.databinding.ItemExternalPhotoBinding
 import com.realityexpander.androidstorage.databinding.ItemGroupTitleBinding
 import com.realityexpander.androidstorage.databinding.ItemInternalPhotoBinding
-
 import kotlinx.coroutines.*
 
+
 typealias LayoutResourceId = Int
+typealias ViewItemId = Int
 
 class DataStorageItemAdapter(
     private val onExternalStoragePhotoClick: (ExternalStoragePhoto) -> Unit = {},
     private val onInternalStoragePhotoClick: (InternalStoragePhoto) -> Unit = {},
-    private val context: Context
 ) : BaseRecyclerAdapter<BaseDataStorageItem>() {
 
-    enum class LayoutItemKind(val layoutId: Int) {
-        GROUP_TITLE_ITEM (R.layout.item_group_title),
-        EXTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_external_photo),
-        INTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_internal_photo)
+    enum class LayoutItemKind(val layoutId: Int, val viewItemId: Int) {
+        GROUP_TITLE_ITEM (R.layout.item_group_title, 1),
+        EXTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_external_photo, 2),
+        INTERNAL_STORAGE_PHOTO_ITEM (R.layout.item_internal_photo, 3)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: LayoutResourceId): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: ViewItemId): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
 
         return when (viewType) { // this is just a layout resource id
-            LayoutItemKind.GROUP_TITLE_ITEM.layoutId ->
-                GroupTitleViewHolder(inflater, parent, viewType)
-            LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId ->
-                ExternalStoragePhotoViewHolder(inflater, parent, viewType, onExternalStoragePhotoClick)
-            LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId ->
-                InternalStoragePhotoViewHolder(inflater, parent, viewType, onInternalStoragePhotoClick)
+            LayoutItemKind.GROUP_TITLE_ITEM.viewItemId ->
+                GroupTitleViewHolder(inflater, parent,
+                    LayoutItemKind.GROUP_TITLE_ITEM.layoutId)
+
+            LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.viewItemId ->
+                ExternalStoragePhotoViewHolder(inflater, parent,
+                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId, onExternalStoragePhotoClick)
+
+            LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.viewItemId ->
+                InternalStoragePhotoViewHolder(inflater, parent,
+                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId, onInternalStoragePhotoClick)
             else ->
                 throw IllegalArgumentException("Unknown viewType: $viewType")
         }
     }
 
-    override fun getItemViewType(position: Int): LayoutResourceId {
+    override fun getItemViewType(position: Int): ViewItemId {
         return getItem(position)?.let {
             return when (it) {
                 is GroupTitle ->
-                    LayoutItemKind.GROUP_TITLE_ITEM.layoutId
+                    LayoutItemKind.GROUP_TITLE_ITEM.viewItemId
                 is ExternalStoragePhoto ->
-                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.layoutId
+                    LayoutItemKind.EXTERNAL_STORAGE_PHOTO_ITEM.viewItemId
                 is InternalStoragePhoto ->
-                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.layoutId
+                    LayoutItemKind.INTERNAL_STORAGE_PHOTO_ITEM.viewItemId
                 else -> throw IllegalArgumentException("Unknown viewType: $it")
             }
         } ?: throw IllegalArgumentException("Unknown viewType for position: $position")
@@ -79,6 +85,8 @@ class DataStorageItemAdapter(
 
         fun bind(groupTitleData: GroupTitle) {
             binding.tvGroupTitle.text = groupTitleData.title
+
+            (this.binding.root.layoutParams as StaggeredGridLayoutManager.LayoutParams).isFullSpan = true
         }
     }
 
